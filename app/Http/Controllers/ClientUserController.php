@@ -35,4 +35,14 @@ class ClientUserController extends Controller
 
         ]);
     }
+
+    public function deleteUserClient($id)
+    {
+        $this->service->delete($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Client user berhasil dihapus'
+        ]);
+    }
 }

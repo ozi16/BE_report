@@ -50,4 +50,13 @@ class ClientUserService
 
         return $user;
     }
+
+    public function delete($id)
+    {
+        $user = User::findOrFail($id);
+
+        $user->delete();
+
+        return true;
+    }
 }

@@ -111,26 +111,75 @@ class GroupUserController extends Controller
     }
 
 
-    public function update(int $id, $data)
+    public function update(Request $request, $id)
     {
-        $group = Groups::findOrFail($id);
+        $request->validate([
+            'name'      => 'required|string|max:100',
+            'gender'    => 'required|in:male,female',
+            'group_id'  => 'required|exists:groups,id_group',
+            'telephone' => 'required|string|max:20',
+            'email' => 'nullable|email|unique:users,email,' . $id,
+            'password'  => 'nullable|min:6',
+            'photo'     => 'nullable|string',
+            'p_type'    => 'nullable|string'
+        ]);
 
-        $updateData = [
-            "group_id" => $data['group_id'],
-            "status" => $data['status'],
-            "gender" => $data['gender'],
-            "name_user" => $data['name_user'],
-            "email" => $data['email'],
-            "user_phone" => $data['user_phone'],
-            "password" => $data['password']
-        ];
+        DB::beginTransaction();
 
-        if (!empty($data['password'])) {
-            $updateData['password'] = Hash::make($data['password']);
+        try {
+            $user = User::findOrFail($id);
+
+            // Update data user
+            $updateData = [
+                'name_user'  => $request->name,
+                'group_id'   => $request->group_id,
+                'gender'     => $request->gender,
+                'user_phone' => $request->telephone,
+            ];
+
+            // Jika email diisi → update
+            if ($request->filled('email')) {
+                $updateData['email'] = $request->email;
+            }
+
+            // Jika password diisi → hash
+            if ($request->filled('password')) {
+                $updateData['password'] = Hash::make($request->password);
+            }
+
+            // Jika photo diisi
+            if ($request->filled('photo')) {
+                $updateData['photo'] = $request->photo;
+            }
+
+            if ($request->filled('p_type')) {
+                $updateData['p_type'] = $request->p_type;
+            }
+
+            $user->update($updateData);
+
+            // Update group member
+            GroupMembers::updateOrCreate(
+                ['client_id' => $user->id],
+                [
+                    'group_id' => $request->group_id,
+                    'add_by'   => $request->user()->id ?? null
+                ]
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User berhasil diupdate',
+                'data' => $user
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
         }
-
-        $group->update($updateData);
-
-        return $group;
     }
 }
